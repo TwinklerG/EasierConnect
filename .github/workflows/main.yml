@@ -92,25 +92,41 @@ jobs:
       - name: Get project dependencies
         run: go mod download
 
-      - name: Build
+      - name: Build main binary
         run: |
           mkdir -p build_assets
           go build -v -o build_assets/EasierConnect -trimpath -ldflags "-s -w -buildid=" .
+
       - name: Rename Windows EasierConnect
         if: matrix.goos == 'windows'
         run: |
           cd ./build_assets || exit 1
           mv EasierConnect EasierConnect.exe
+
+      - name: Build GUI binary
+        run: |
+          mkdir -p build_assets/gui
+          go build -v -o build_assets/gui/gui_entry -trimpath -ldflags "-s -w -buildid=" ./gui/gui_entry.go
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+
+      - name: Rename Windows GUI binary
+        if: matrix.goos == 'windows'
+        run: |
+          cd ./build_assets/gui || exit 1
+          mv gui_entry gui_entry.exe
+
       - name: Create ZIP archive
         run: |
           pushd build_assets || exit 1
           zip -9vr ../EasierConnect-$ASSET_NAME.zip .
           popd || exit 1
-      
+
       - name: Upload release binary
         if: github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           gh release upload ${{ github.event.release.tag_name }} EasierConnect-${{ steps.get_filename.outputs.ASSET_NAME }}.zip
-
